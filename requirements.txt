@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+python-multipart
+PyMuPDF
+python-docx
+google-generativeai
+google-cloud-firestore
+httpx
+tenacity
