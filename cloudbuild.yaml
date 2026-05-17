@@ -1,0 +1,53 @@
+# TODO: Replace YOUR_PROJECT_ID with actual GCP project ID
+# TODO: Replace YOUR_REGION with target region (e.g., us-central1)
+
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/YOUR_PROJECT_ID/lexguard-backend:$COMMIT_SHA'
+      - '-t'
+      - 'gcr.io/YOUR_PROJECT_ID/lexguard-backend:latest'
+      - '.'
+
+  # Push the container image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/YOUR_PROJECT_ID/lexguard-backend:$COMMIT_SHA'
+
+  # Run vulnerability scan
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - 'container'
+      - 'images'
+      - 'scan'
+      - 'gcr.io/YOUR_PROJECT_ID/lexguard-backend:$COMMIT_SHA'
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'lexguard-backend'
+      - '--image=gcr.io/YOUR_PROJECT_ID/lexguard-backend:$COMMIT_SHA'
+      - '--platform=managed'
+      - '--region=YOUR_REGION'
+      - '--no-allow-unauthenticated'
+      - '--service-account=svc-lexguard-backend@YOUR_PROJECT_ID.iam.gserviceaccount.com'
+      - '--ingress=internal-and-cloud-load-balancing'
+      - '--memory=2Gi'
+      - '--cpu=2'
+      - '--max-instances=10'
+      - '--timeout=300'
+      - '--set-env-vars=GCP_PROJECT_ID=YOUR_PROJECT_ID'
+
+images:
+  - 'gcr.io/YOUR_PROJECT_ID/lexguard-backend:$COMMIT_SHA'
+  - 'gcr.io/YOUR_PROJECT_ID/lexguard-backend:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: 'N1_HIGHCPU_8'
