@@ -1,0 +1,209 @@
+openapi: 3.0.0
+info:
+  title: LexGuard RiskScope API
+  description: Contract intelligence platform with 4-agent orchestration
+  version: 1.0.0
+
+servers:
+  - url: https://lexguard-backend-{region}.run.app
+    description: Cloud Run deployment
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+
+  /api/pipeline/ingest:
+    post:
+      summary: Ingest clauses for analysis
+      description: Receives job_id and clauses array from pipeline
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - job_id
+                - clauses
+              properties:
+                job_id:
+                  type: string
+                  description: Unique job identifier
+                clauses:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - clause_id
+                      - text
+                    properties:
+                      clause_id:
+                        type: string
+                      text:
+                        type: string
+                      page_number:
+                        type: integer
+                        nullable: true
+      responses:
+        '200':
+          description: Job created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  job_id:
+                    type: string
+                  total_clauses:
+                    type: integer
+                  message:
+                    type: string
+        '400':
+          description: Invalid request
+        '409':
+          description: Job already exists
+
+  /api/analyze/{job_id}:
+    get:
+      summary: Trigger analysis for a job
+      description: Starts the 4-agent analysis chain
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Analysis started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  job_id:
+                    type: string
+                  message:
+                    type: string
+        '404':
+          description: Job not found
+
+  /ws/{job_id}:
+    get:
+      summary: WebSocket for real-time updates
+      description: Streams analysis events as each clause is processed
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '101':
+          description: WebSocket connection established
+
+  /api/report/{job_id}:
+    get:
+      summary: Get full analysis report
+      description: Returns complete JSON report for download
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Analysis report
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+                  status:
+                    type: string
+                    enum: [pending, processing, completed, failed]
+                  clauses:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        clause_id:
+                          type: string
+                        clause_text:
+                          type: string
+                        clause_type:
+                          type: string
+                          enum: [non-compete, IP-transfer, arbitration, termination, data-collection, liability, auto-renewal, other]
+                        risk_scores:
+                          type: object
+                          properties:
+                            financial_risk:
+                              type: integer
+                              minimum: 0
+                              maximum: 10
+                            privacy_risk:
+                              type: integer
+                              minimum: 0
+                              maximum: 10
+                            ip_risk:
+                              type: integer
+                              minimum: 0
+                              maximum: 10
+                            employment_risk:
+                              type: integer
+                              minimum: 0
+                              maximum: 10
+                            compliance_risk:
+                              type: integer
+                              minimum: 0
+                              maximum: 10
+                        adversary_argument:
+                          type: string
+                          description: Hostile lawyer perspective (THE USP)
+                        plain_language_summary:
+                          type: string
+                        severity:
+                          type: string
+                          enum: [critical, high, medium, low]
+                        negotiation_recommendation:
+                          type: string
+                  total_clauses:
+                    type: integer
+                  processed_clauses:
+                    type: integer
+        '404':
+          description: Job not found
+
+components:
+  schemas:
+    WebSocketEvent:
+      type: object
+      properties:
+        event:
+          type: string
+          enum: [started, extractor_complete, analyst_complete, adversary_complete, advisor_complete, clause_complete, job_complete, error]
+        clause_id:
+          type: string
+          nullable: true
+        data:
+          type: object
+          nullable: true
